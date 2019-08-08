@@ -1,0 +1,80 @@
+extends layout
+block poststylesheets
+  style.
+block content
+  div.main-cover
+    div.ai-intro
+      div.intro-text.animated.slideInUp
+        span.intro-title MANY WAYS TO WATCH
+        p.intro-subtitle On Explore.Moe
+    video.intro-video(width='100%', style='width: 100%; , height: auto;', loop='', playsinline='',muted='', autoplay='', poster='images/intro.jpg', controls='false')
+      source(src='/videos/intro.mp4', type='video/mp4')
+    div.main-cover-wrapper
+  div.container-block.container-top-spacing
+    div.window-bar
+    div.tcenter-wrapper
+      span.section-title.animated.fadeIn Popular Airing
+    br
+    .poster-aisle
+      i.fa.fa-chevron-left.aisle-nav-button.previous-button
+      div.posters-wrapper
+        div.posters
+          | !{airing}
+      i.fa.fa-chevron-right.aisle-nav-button.next-button
+block postscripts
+  script.
+    var apple = "okay";
+  script.
+    var iOSAgent = !!navigator.userAgent && /iPad|iPhone|iPod/.test(navigator.userAgent);
+    var iOSPlatform = !!navigator.platform && /iPad|iPhone|iPod/.test(navigator.platform);
+    if (iOSAgent || iOSPlatform) {
+      $("#videoWrap").html("");
+    }
+    $(".previous-button").click(function(){
+      go(0, $(this));
+    });
+    $(".next-button").click(function(){
+      console.log('click');
+      go(1, $(this));
+    });
+
+    function go(next, btn){
+      var parent = btn.parent();
+      var posters = parent.find('.posters').eq(0);
+      var totalWidthNow = posters.width();
+      var totalViewableWidth = 0;
+      var postersWrapperWidth = posters.parent().width();
+      if(next == 1){
+        totalViewableWidth = parent.find('.poster-aisle').eq(0).width() - 32;
+      }else if(next == 0){
+        totalViewableWidth = parent.find('.poster-aisle').eq(0).width() + 32;
+      }
+      var currentVal = posters.css('margin-left').substring(0, posters.css('margin-left').length-2);
+      currentVal = parseInt(currentVal);
+      if(next == 1){
+        currentVal = currentVal - 153;
+      }else if(next == 0){
+        currentVal = currentVal + 153;
+      }
+      var positiveVal = Math.abs(currentVal);
+      var total = postersWrapperWidth + positiveVal - 150;
+      console.log('total: ' + total);
+      if(total >= posters.width()){
+        console.log('needa stop');
+        return;
+      }else if(posters.css('margin-left') == '0px' && next == 0){
+        return;
+      }
+      if(btn.hasClass("a-nav-disabled")){
+        return;
+      }else{
+        btn.addClass("a-nav-disabled");
+      }
+      posters.stop().animate({
+          marginLeft: currentVal + 'px'
+      }, 200, function() {
+        if(btn.hasClass("a-nav-disabled")){
+          setTimeout(function(){ btn.removeClass("a-nav-disabled"); }, 200);
+        }
+      });
+    }

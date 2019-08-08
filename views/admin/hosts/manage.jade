@@ -1,0 +1,107 @@
+extends ../layout
+
+block poststylesheets
+  style.
+    .tb-buttons {
+      float: right;
+      display: block;
+      margin-right: 12px;
+    }
+
+    .btn {
+      margin-left: 2px;
+      margin-right: 2px;
+    }
+
+    .table {
+      margin-top: 12px;
+    }
+
+    .table td {
+      color: white;
+    }
+block content
+  div.container-block.main-block
+    div.inner-content
+      h2.subtitle Host Management
+      div#notificationArea
+      div.tb-buttons
+        a(href='/admin/hosts/add')
+          button.btn.btn-success-outline(type='button') +Host
+      div.m-space
+      table.table
+          thead.thead-default
+            tr
+              th Domain
+              th Tags
+              th Options
+          tbody#hosts
+block prescripts
+  script(src='/socket.io/socket.io.js')
+  script(src='/admin/javascripts/socket-handler')
+block postscripts
+  script.
+
+    /*PACKET LISTENERS*/
+    packetListener["NotificationPacket"] = function(obj){
+      notify(obj.type, obj.notification);
+    };
+
+    packetListener["HostListPacket"] = function(obj){
+      setList(obj);
+    };
+
+    /*PACKET RESPONSE FUNCTIONS*/
+
+    function notify(type, message){
+      var notifCode = '<div id="currentNotification" class="alert alert-' + type + '" role="alert">' + message + '</div>';
+      $("#notificationArea").html(notifCode);
+      setTimeout(function(){
+        if($("#notificationArea").html() == notifCode){
+          $("#currentNotification").fadeOut();
+        }
+      }, 2000);
+    }
+
+    function setList(obj){
+      var tags = obj.tags;
+      var list = obj.list;
+      $("#hosts").html("");
+      for(var n = 0; n != list.length;n++){
+        var currentHostObj = list[n];
+        $("#hosts").append('<tr><td>' + htmlEntities(currentHostObj.domain) + '</td><td>' + createTagsCode(tags, currentHostObj.tags) + '</td><td><button type="button" onclick="confirmRemoval(this, ' + "'" + currentHostObj.domain + "'" + ')" class="btn btn-danger btn-sm">Remove</button><a href="/admin/hosts/edit/' + currentHostObj.domain + '" "<button type="button" class="btn btn-info btn-sm">Edit</button></td>');
+      }
+    }
+
+    function createTagsCode(tags, tagIds){
+      var code = '';
+      for(var n = 0; n != tagIds.length;n++){
+        code = code + '<a class="tag">' + tags[tagIds[n]] + '</a>';
+      }
+      return code;
+    }
+
+    function confirmRemoval(btn, domain){
+      btn.onclick = function(){ requestHostRemoval(this, domain);};
+      btn.className = "btn btn-warning btn-sm";
+      btn.innerHTML = "Confirm Removal";
+    }
+
+    function requestHostRemoval(btn, domain){
+      btn.innerHTML = "Requested";
+      btn.className = "btn btn-warning btn-sm disabled";
+      var removeRequest = new HostRemovalRequest();
+      removeRequest.domain = domain;
+      socket.send(stringPacket(removeRequest));
+      setTimeout(function(){
+        requestList();
+      }, 1000);
+    }
+
+    function requestList(){
+      var listReq = new HostListPacket();
+      socket.send(stringPacket(listReq));
+    }
+
+    sendVerificationPacket();
+    requestList();

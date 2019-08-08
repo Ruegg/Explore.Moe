@@ -1,0 +1,197 @@
+extends layout
+block content
+  div.cover(style='background-image: url("#{anime.cover_image.large}");')
+    div.cover-wrapper
+      p &nbsp;
+  div.container-block.main-block.transparent-block(style='padding-top: 10%;')
+    div.section
+      div.image-wrapper.larger-display-image
+        img.poster_image(src='#{anime.poster_image.medium}')
+      div.textual-area.larger-display-textual
+        font.sub #{anime.titles.en_jp}
+        p
+          span(style='color:yellow;') &starf; #{anime.community_rating.toFixed(2)}
+          span.darker.t-space -
+          b #{anime.age_rating}
+          span.darker.t-space -
+          | #{anime.episode_count} episodes !{genreCode}
+        font.labeled Synopsis
+        p #{anime.synopsis}
+    div.inner-content
+      div.reference-area
+        span.reference-title Show me where to watch episode&nbsp;
+          input.reference-episode-select#episodeSelect(list="episode-selections")
+          datalist#episode-selections
+            - for(var n = 1; n < (anime.episode_count+1);n++){
+              option(value=n)
+            - }
+          &nbsp; out of #{anime.episode_count}
+      div.entries#entryArea
+      p#entryStatus
+
+block postscripts
+  script.
+
+    var jsonEntries = JSON.parse('!{entriesJSON}');
+
+    var epInputTimer;
+
+    var entryArray = [];
+
+    /*Configure the entries*/
+    for(var y = 0; y != jsonEntries.length;y++){
+      var currentComboObject = jsonEntries[y];
+      if(currentComboObject.type == 'SENTRY'){
+        var dataArray = currentComboObject.data;
+        var tags = currentComboObject.tags;
+        for(var n = currentComboObject.start; n != (currentComboObject.end+1);n++){//For each episode in SmartEntry
+          var arr = [];
+          if(typeof entryArray[n] == 'object'){
+            if(objectIsArray(entryArray[n])){
+              arr = entryArray[n];
+            }
+          }
+          var currentURL = '';
+          for(var x = 0; x != dataArray.length;x++){
+            if(typeof dataArray[x] == 'string'){
+              currentURL = currentURL + dataArray[x];
+            }else if(typeof dataArray[x] == 'number'){
+              currentURL = currentURL + n;
+            }
+          }
+          var obj = {url: currentURL, tags: tags};
+          if(tags.indexOf("Website Down") != -1){
+            obj.down = true;
+          }
+          arr.push(obj);
+          entryArray[n] = arr;
+        }
+      }else if(currentComboObject.type == 'ENTRY'){
+        var arr = [];
+        if(typeof entryArray[currentComboObject.ep] == 'object'){
+          if(objectIsArray(entryArray[currentComboObject.ep])){
+            arr = entryArray[currentComboObject.ep];
+          }
+        }
+        var obj = {url: currentComboObject.url, tags: currentComboObject.tags};
+        arr.push(obj);
+        entryArray[currentComboObject.ep] = arr;
+      }
+    }
+
+    $("#episodeSelect").on('change', function() {
+      findNewEpisodes();
+    });
+
+    function findNewEpisodes(){
+      var episode = $("#episodeSelect").val();
+      if(isNumeric(episode)){
+        episode = parseInt(episode);
+        if(typeof entryArray[episode] == 'object'){
+          if(objectIsArray(entryArray[episode])){
+            //For each object in episode array
+            $("#entryArea").html("");//clear
+            for(var n = 0; n != entryArray[episode].length; n++){
+              var currentComboObject = entryArray[episode][n];
+              var down = currentComboObject.down;
+              var tagCode = '';
+              for(var x = 0; x != currentComboObject.tags.length; x++){
+                var currentTag = currentComboObject.tags[x];
+                tagCode = tagCode + '<a class="tag">' + currentTag + '</a>';
+              }
+              var code = '<div class="entry' + ((down) ? ' entry-disabled' : '') +  '" onclick="window.open(' + "'" + currentComboObject.url + "', '_blank')" + '"><font class="host">' + attemptDomainObtain(currentComboObject.url) + '</font><div class="tags">' + tagCode + '</div>';
+              if(n != 0){
+                code = '<hr class="episode-partition">' + code;
+              }
+              $("#entryArea").append(code);
+              $(".entry").eq($(".entry").length - 1).fadeIn();
+            }
+          }
+        }else{
+          $("#entryArea").html('<center><p>Sorry! Nothing could be found for episode ' + episode + '</p></center>');
+        }
+      }
+    }
+
+    /*$("#epInput").keypress(function( event ) {
+      console.log('Entered: ' + event.keyCode);
+      if(event.keyCode > 47 && event.keyCode < 58){
+        $('#entryArea').html('');
+        if($("#entryArea").hasClass('loadingEntries') == false){
+          $("#entryArea").addClass('loadingEntries');
+        }
+        if(epInputTimer != null){
+          window.clearTimeout(epInputTimer);
+        }
+        epInputTimer = setTimeout(function(){
+          findResults();
+        }, 600);
+      }else{
+        event.preventDefault();;
+      }
+    });*/
+
+    function findResults(){
+      if($("#entryArea").hasClass('loadingEntries')){
+        $("#entryArea").removeClass('loadingEntries');
+      }
+      $("#entryArea").html('');
+      var epIn = $("#epInput").val();
+      if(isNumeric(epIn)){
+        var num = parseInt(epIn);
+        if(typeof entryArray[num] == 'object'){
+          if(objectIsArray(entryArray[num])){
+            for(var n = 0; n != entryArray[num].length; n++){
+              var currentComboObject = entryArray[num][n];
+              var tagCode = '';
+              for(var x = 0; x != currentComboObject.tags.length; x++){
+                var currentTag = currentComboObject.tags[x];
+                tagCode = tagCode + '<a class="tag">' + currentTag + '</a>';
+              }
+              var code = '<div class="entry" onclick="window.open(' + "'" + currentComboObject.url + "', '_blank')" + '"><font class="host">' + attemptDomainObtain(currentComboObject.url) + '</font><div class="tags">' + tagCode + '</div>';
+              $("#entryArea").append(code);
+              $(".entry").eq($(".entry").length - 1).fadeIn();
+            }
+          }
+        }else{
+          $("#entryArea").append('<center><p>Sorry! Nothing could be found for episode ' + num + '</p></center>');
+        }
+      }
+
+      $('html, body').animate({
+          scrollTop: $("#entryArea").offset().top
+      }, 1000);
+    }
+
+    function attemptDomainObtain(url){
+      url = removeIfStarts(url, 'http://');
+      url = removeIfStarts(url, 'https://');
+      url = removeIfStarts(url, 'www.');
+      url = removeIfStarts(url, 'www2.');
+      url = removeIfStarts(url, 'ww2.');
+      if(url.indexOf('/') > -1){
+        var split = url.split('/');
+        url = split[0].substring(0, 1).toUpperCase() + split[0].substring(1, split[0].length);
+      }
+      return url;
+    }
+
+    function removeIfStarts(str, starts){
+      if(str.startsWith(starts)){
+        return str.substring(starts.length, str.length);
+      }else{
+        return str;
+      }
+    }
+
+    function objectIsArray(obj){
+      return Object.prototype.toString.call(obj) === '[object Array]';
+    }
+
+    function isNumeric(n) {
+      return !isNaN(parseFloat(n)) && isFinite(n);
+    }
+
+    function htmlEntities(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }

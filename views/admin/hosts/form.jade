@@ -1,0 +1,172 @@
+extends ../layout
+
+block poststylesheets
+  style.
+    .overlay {
+      position:fixed;
+      background-color: rgba(0,0,0,0.5);
+      width:100%;
+      height:100%;
+      left:0;
+      top:0;
+      z-index:100000;
+      text-align: center;
+    }
+    
+    .overlay-status{
+      margin-top: 18%;
+      font-size: 2vw;
+      color: white;
+      font-family: 'Lato', sans-serif;
+      display: block;
+    }
+block content
+  div.container-block.main-block
+    div.inner-content
+      if edit
+        h2.subtitle Edit Host
+      else
+        h2.subtitle Add Host
+      div#notificationArea
+      div.overlay#overlay(style='display: none;')
+        font.overlay-status#overlayStatus
+      form
+        if edit
+          h4#hostTitle
+        else
+          input#domainInput.form-control(type='text', placeholder='Enter domain')
+          small.text-muted#slugResponse Domain does not include http or www (Ex: animeindex.net)
+        div.m-space
+        label(for='tagArea') Tags (Click to toggle)
+        div#tagArea
+        
+        br
+        if edit
+          button.btn.btn-info-outline.submit-button#saveButton(type='button') Save changes
+        else
+          button.btn.btn-warning-outline.submit-button#submitButton(type='button') Attempt Adding
+      
+block prescripts
+  script(src='/socket.io/socket.io.js')
+  script(src='/admin/javascripts/socket-handler')
+block postscripts
+  script.  
+    var hostListObj;
+    
+    /*PACKET LISTENERS*/
+    
+    packetListener["NotificationPacket"] = function(obj){
+      notify(obj.type, obj.notification);
+    };
+    
+    /*PACKET RESPONSE FUNCTIONS*/
+    
+    function notify(type, message){
+      var notifCode = '<div id="currentNotification" class="alert alert-' + type + '" role="alert">' + message + '</div>';
+      $("#notificationArea").html(notifCode);
+      setTimeout(function(){
+        if($("#notificationArea").html() == notifCode){
+          $("#currentNotification").fadeOut();
+        }
+      }, 2000);
+    }
+    
+    function waitOverlay(){
+      $("#overlay").fadeIn();
+      $("#overlayStatus").text('Attempting to load in host...');
+    }
+    
+    function loadFulfilled(){
+      var domain = '#{domain}';
+      
+      var hostList = hostListObj.list;
+      
+      var exist = false;
+      var domainTags = [];
+      for(var n = 0; n != hostList.length;n++){
+        var currentHostObj = hostList[n];
+        if(currentHostObj.domain == domain){
+          exist = true;
+          domainTags = currentHostObj.tags;
+        }
+      }
+      if(exist){
+        $("#overlayStatus").text('Response fulfilled...');
+        $("#hostTitle").text('Host: ' + domain);
+        for(var n = 0; n != domainTags.length;n++){
+          var currentTag = domainTags[n];
+          $(".tag-input").eq(currentTag).prop('checked', true);
+        }
+        $("#overlayStatus").text('Finished loading');
+        $("#overlay").fadeOut();
+      }else{
+        $("#overlayStatus").text('Host does not exist, refusing to load.');
+      }
+    }
+    
+    function configureTemplate(obj){
+      hostListObj = obj;
+      for(var n = 0; n != obj.tags.length; n++){
+        var currentTag = obj.tags[n];
+        $("#tagArea").append('<label class="c-input c-checkbox"><input class="tag-input" type="checkbox"><span class="c-indicator"></span>' + currentTag + '</label>');
+      }
+    }
+    
+    function isInt(value) {
+      return !isNaN(value) && parseInt(Number(value)) == value && !isNaN(parseInt(value, 10));
+    }
+    
+    function sendListRequest(){
+      var listReq = new HostListPacket();
+      socket.send(stringPacket(listReq));
+    }
+    
+    function requestHostAddition(){
+      var req = new HostAdditionRequest();
+      req.domain = $("#domainInput").val();
+      req.tags = getTIDArray();
+      socket.send(stringPacket(req));
+      notify('info', 'Sent request, waiting for server...');
+    }
+    
+    function requestHostAppend(){
+      var req = new HostEditRequest();
+      req.domain = '#{domain}';
+      req.tags = getTIDArray();
+      socket.send(stringPacket(req));
+      notify('info', 'Sent request, waiting for server...');
+    }
+    
+    function getTIDArray(){
+      var arr = [];
+      for(var n = 0; n != $(".tag-input").length;n++){
+        var checked = $(".tag-input").eq(n).prop('checked');
+        if(checked){
+          arr.push(n);
+        }
+      }
+      return arr;
+    }
+    
+    $("#submitButton").click(function() {
+      requestHostAddition();
+    });
+    
+    $("#saveButton").click(function(){
+      requestHostAppend();
+    });
+    sendVerificationPacket();
+    sendListRequest();
+    
+  if edit
+    script.
+      waitOverlay();
+      packetListener["HostListPacket"] = function(obj){
+        configureTemplate(obj);
+        loadFulfilled();
+      }
+  else
+    script.
+      packetListener["HostListPacket"] = function(obj){
+        configureTemplate(obj);
+      }
