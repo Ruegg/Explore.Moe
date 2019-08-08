@@ -128,6 +128,7 @@ function requestAnimeAdditionPacket(socket, slug, en, en_jp, requestedSynopsis, 
         var genres = [];
         var age_rating = '?';
         var episode_count = 0;
+        var average_rating = 0;
         /*Check object types*/
         if(requestedSynopsis == ''){//Allow override synopsis
           if(typeof attributes.synopsis == 'string'){
@@ -142,6 +143,9 @@ function requestAnimeAdditionPacket(socket, slug, en, en_jp, requestedSynopsis, 
         }
         if(typeof attributes.endDate == 'string' || typeof attributes.endDate == 'object'){
           finished_airing_date = attributes.endDate;
+        }
+        if(typeof attributes.average_rating == 'number'){
+          average_rating = (attributes.average_rating/100)*5;
         }
         if(objectIsArray(attributes.genres)){
           for(var n = 0; n != attributes.genres.length;n++){
@@ -184,7 +188,7 @@ function requestAnimeAdditionPacket(socket, slug, en, en_jp, requestedSynopsis, 
 
         /*Create and add anime*/
         var animeObj = new Anime();
-        animeObj.setInitData(titles, synopsis, started_airing_date, finished_airing_date, cover_image, poster_image, genres, age_rating, episode_count, community_rating, confirmedEntries, confirmedSmartEntries);
+        animeObj.setInitData(titles, synopsis, started_airing_date, finished_airing_date, cover_image, poster_image, genres, age_rating, episode_count, average_rating, confirmedEntries, confirmedSmartEntries);
         animes.set(slug, animeObj);
         backEnd.saveConfiguration();
         backEnd.saveAnime(slug);

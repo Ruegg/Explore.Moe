@@ -238,8 +238,8 @@ block postscripts
       }
       if($("#smartEntries").find(".smartEntrySection").length > 0){
         for(var n = 0; n != $("#smartEntries").find(".smartEntrySection").length; n++){
-          var currentSmartEntrySection = $("#smartEntries").find(".smartEntrySection").eq(n);
-          var code = currentSmartEntrySection.find("textarea").eq(0).text();
+          var currentSmartEntrySection = $("#smartEntries").find(".smarturl-input").eq(n);
+          var code = currentSmartEntrySection.val();
           try {
               var obj = JSON.parse(code);
               smartEntries.push(obj);

@@ -37,7 +37,11 @@ router.all('/admin/login', function(req, res) {
 
 router.all('/anime/:slug', function(req, res) {
   if(animeController.getAnimes().has(req.params.slug)){
-    res.render('anime', {anime: animeController.getAnimes().get(req.params.slug), entriesJSON: animeController.jsonCodeForEntries(req.params.slug), genreCode: animeController.getGenreCode(req.params.slug)});
+    var animeObj = animeController.getAnimes().get(req.params.slug);
+    if(animeObj.cover_image.large == ""){
+      animeObj.cover_image.large = "/images/defaultcover.jpg";
+    }
+    res.render('anime', {anime: animeObj, entriesJSON: animeController.jsonCodeForEntries(req.params.slug), genreCode: animeController.getGenreCode(req.params.slug)});
   }else{
     res.render('admin/error', {error: 'Anime not found! Tu-turu!'});
   }
