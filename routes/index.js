@@ -43,7 +43,7 @@ router.all('/anime/:slug', function(req, res) {
     }
     res.render('anime', {anime: animeObj, entriesJSON: animeController.jsonCodeForEntries(req.params.slug), genreCode: animeController.getGenreCode(req.params.slug)});
   }else{
-    res.render('admin/error', {error: 'Anime not found! Tu-turu!'});
+    res.render('error', {error: 'Anime not found! Tu-turu!'});
   }
 });
 
