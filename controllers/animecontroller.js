@@ -69,6 +69,7 @@ function requestAnimeLoadPacket(socket, slug){
   loadPacket.en = currentAnime.titles.en;
   loadPacket.en_jp = currentAnime.titles.en_jp;
   console.log("Sending!");
+
   socket.send(packets.stringPacket(loadPacket));
 }
 
@@ -86,6 +87,38 @@ function requestAnimeEditPacket(socket, slug, en, en_jp, synopsis, episodeCount,
   animes.get(slug).entries = confirmedEntries;
   animes.get(slug).smartentries = confirmedSmartEntries;
   backEnd.saveAnime(slug);
+
+  //Try to update some info we can
+  kitsu.requestAnime(slug, function(error, response, body){
+    if(error){
+      return;
+    }
+
+    if(response.statusCode == 200){
+      var obj = packets.isValidJSON(body);
+      if(obj != false){
+        var attributes = utils.get(obj, 'data.0.attributes');
+        if(objectIsArray(attributes)){
+          return;
+        }
+
+        if(typeof attributes.averageRating == 'string'){
+          if(!isNaN(parseFloat(attributes.averageRating))){
+            animes.get(slug).community_rating = (parseFloat(attributes.averageRating)/100)*5;
+
+            if(typeof attributes.endDate == 'string' || typeof attributes.endDate == 'object'){
+              animes.get(slug).finished_airing_date = attributes.endDate;
+            }
+            backEnd.saveAnime(slug);
+            console.log('Updating ' + slug + ' details');
+          }
+        }
+
+      }
+    }
+
+  });
+
   console.log(slug +  'has been edited');
   backEnd.sendNotification(socket, 'success', 'Edit was successful');
 }
@@ -109,7 +142,7 @@ function requestAnimeAdditionPacket(socket, slug, en, en_jp, requestedSynopsis, 
       if(obj != false){
         console.log('Starting creation of ' + slug);
         var attributes = utils.get(obj, 'data.0.attributes');
-        if(objectIsArray(attributes) == false){
+        if(objectIsArray(attributes)){
           backEnd.sendNotification(socket, 'danger', 'Received bad object from HummingBird');
         }
 
@@ -144,8 +177,10 @@ function requestAnimeAdditionPacket(socket, slug, en, en_jp, requestedSynopsis, 
         if(typeof attributes.endDate == 'string' || typeof attributes.endDate == 'object'){
           finished_airing_date = attributes.endDate;
         }
-        if(typeof attributes.average_rating == 'number'){
-          average_rating = (attributes.average_rating/100)*5;
+        if(typeof attributes.averageRating == 'string'){
+          if(!isNaN(parseFloat(attributes.averageRating))){
+            average_rating = (parseFloat(attributes.averageRating)/100)*5;
+          }
         }
         if(objectIsArray(attributes.genres)){
           for(var n = 0; n != attributes.genres.length;n++){
