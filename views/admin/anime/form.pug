@@ -1,0 +1,471 @@
+extends ../layout
+
+block poststylesheets
+  style.
+    .epinput {
+      display: inline-block;
+      width: 15%;
+    }
+    .hostinput {
+      display: inline-block;
+      padding-left: 8px;
+      width: 70%;
+    }
+
+    .removeEntry {
+      display: inline-block;
+      padding-left: 4px;
+      width: 8%;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .btn {
+      margin-top: 8px;
+      margin-bottom: 8px;
+    }
+
+    .input-group-btn .btn{
+      margin: 0;
+    }
+
+    .tagForm .input-group {
+      display: inline-block;
+      margin-right: 4px;
+    }
+    .tagForm .btn {
+      display: inline-block;
+      margin-left: 4px;
+    }
+
+    .validationArea .btn {
+      display: inline-block;
+      margin-right: 8px;
+    }
+
+    .smartEntrySection {
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
+
+    .smarturl-input {
+      font-family: 'Montserrat', sans-serif;
+    }
+    .submit-button {
+      float: right;
+      margin-right: 12px;
+    }
+
+    .overlay {
+      position:fixed;
+      background-color: rgba(0,0,0,0.5);
+      width:100%;
+      height:100%;
+      left:0;
+      top:0;
+      z-index:100000;
+      text-align: center;
+    }
+
+    .overlay-status{
+      margin-top: 18%;
+      font-size: 2vw;
+      color: white;
+      font-family: 'Lato', sans-serif;
+      display: block;
+    }
+block content
+  div.container-block.main-block
+    div.inner-content
+      if edit
+        h2.subtitle Edit Anime
+      else
+        h2.subtitle Add Anime
+      div#notificationArea
+      div.overlay#overlay(style='display: none;')
+        font.overlay-status#overlayStatus
+      form
+        fieldset.form-group
+          label(for='slugInput') Slug
+          input#slugInput.form-control.styled-control(type='input', placeholder='Enter slug')
+          small.text-muted#slugResponse This is the URL extension for the anime
+          br
+          button.btn.btn-primary-outline.btn-sm#fillAPI(type='button') Fill With API
+          fieldset.form-group
+            label Naming
+            div.form-inline
+              input.form-control.styled-control.input-group-lg#englishName(type='text', placeholder='English Name')
+              input.form-control.styled-control.input-group-lg#romajiName(type='text', placeholder='English/Japanese Name')
+          fieldset.form-group
+            label Airing
+            div.form-inline
+              input.form-control.styled-control.input-group-lg#startedAiringDate(type='text', placeholder='Started Airing Date')
+              input.form-control.styled-control.input-group-lg#finishedAiringDate(type='text', placeholder='Finished Airing Date')
+        fieldset.form-group
+          label(for='synopsisArea') Synopsis
+          textarea#synopsisArea.form-control.styled-control(rows='4', placeholder='Write your creative description here')
+        fieldset.form-group
+          label(for='genreArea') Genres
+          input#genreInput.form-control.styled-control(rows='4', placeholder='Genres(separated by commas)')
+        hr
+        fieldset.form-group
+          label Attributes
+          div.form-inline
+            input.form-control.styled-control#episodeCount(type='number', placeholder='# episodes')
+            input.form-control.styled-control#communityRating(type='number', placeholder='Community Rating')
+            input.form-control.styled-control#ageRating(type='text', placeholder='Age Rating')
+        fieldset.form-group
+          label Cover Image Sources
+          div.form-inline
+            input.form-control.styled-control#tinyCoverImage(type='text', placeholder='Tiny')
+            input.form-control.styled-control#smallCoverImage(type='text', placeholder='Small')
+            input.form-control.styled-control#mediumCoverImage(type='text', placeholder='Medium')
+            input.form-control.styled-control#largeCoverImage(type='text', placeholder='Large')
+        fieldset.form-group
+          label Poster Image Sources
+          div.form-inline
+            input.form-control.styled-control#tinyPosterImage(type='text', placeholder='Tiny')
+            input.form-control.styled-control#smallPosterImage(type='text', placeholder='Small')
+            input.form-control.styled-control#mediumPosterImage(type='text', placeholder='Medium')
+            input.form-control.styled-control#largePosterImage(type='text', placeholder='Large')
+        hr
+        fieldset.form-group
+          label Entries
+          div#entries
+          button.btn.btn-success-outline#addNewEntry(type='button') Add another entry
+        hr
+        fieldset.form-group
+          label Smart Entries
+          div#progressArea
+            progress.progress.progress-info#scanProgress(value='0', max='100') 50%
+          div.tagForm.form-inline
+              input.form-control.styled-control#startEpInput(type='text', placeholder='#Start Episode')
+              input.form-control.styled-control#endEpInput(type='text', placeholder='#End Episode')
+              button.btn.btn-primary-outline.btn-sm#scanHosts(type='button') Scan for hosts
+          div#smartEntries
+          button.btn.btn-success-outline#addNewSmartEntry(type='button') Add another smart entry
+          br
+          if edit
+            button.btn.btn-info-outline.submit-button#saveButton(type='button') Save changes
+          else
+            button.btn.btn-danger-outline.submit-button#submitButton(type='button') Attempt Adding
+
+block prescripts
+  script(src='/socket.io/socket.io.js')
+  script(src='/admin/javascripts/socket-handler')
+block postscripts
+  script.
+    var lastProgressType = 'info';
+
+    /*PACKET LISTENERS*/
+
+    packetListener["NotificationPacket"] = function(obj){
+      notify(obj.type, obj.notification);
+    };
+
+    packetListener["ValidSlugPacket"] = function(obj){
+      $("#slugResponse").html(obj.response);
+    };
+
+    packetListener["ScanProgressPacket"] = function(obj){
+      if(obj.type != lastProgressType){
+        $("#scanProgress").removeClass(('progress-' + lastProgressType));
+        $("#scanProgress").addClass(('progress-') + obj.type);
+        lastProgressType = obj.type;
+      }
+      $("#scanProgress").val(obj.val);
+    };
+
+    packetListener["VariablePacket"] = function(obj){
+      console.log('Im running it');
+      handleVariable(obj.name, obj.data);
+    };
+
+    packetListener["AnimeLoadPacket"] = function(obj){
+      console.log("Trying to load in");
+      loadFulfilled(obj);
+    };
+
+    packetListener["AnimeAPIFillPacket"] = function(obj){
+      loadAPIFilled(obj);
+    };
+
+    /*PACKET RESPONSE FUNCTIONS*/
+
+    function notify(type, message){
+
+      if($("#overlay").is(":visible")){
+        $("#overlay").fadeOut();
+      }
+      var notifCode = '<div id="currentNotification" class="alert alert-' + type + '" role="alert">' + message + '</div>';
+      $("#notificationArea").html(notifCode);
+      setTimeout(function(){
+        if($("#notificationArea").html() == notifCode){
+          $("#currentNotification").fadeOut();
+        }
+      }, 2000);
+    }
+
+    function handleVariable(name, data){
+      if(name == 'smartentry'){
+        addNewSmartEntry();
+        console.log('Adding a smartentry');
+        $("#smartEntries").find('.smartEntrySection').eq($("#smartEntries").find('.smartEntrySection').length-1).find('textarea').eq(0).text(data);
+      }
+    }
+
+    function addNewEntry(){
+      $("#entries").append('<div class="entrySection"><div class="epinput"><input type="text" placeholder="#ep" class="form-control styled-control"></div><div class="hostinput"><input type="text" placeholder="URL" class="form-control styled-control"></div><div class="removeEntry"><button type="button" class="btn btn-danger btn-sm rem-entry">-</button></div></div>');
+    }
+    function addNewSmartEntry(){
+      $("#smartEntries").append('<div class="smartEntrySection"><div class="smartEntry row"><div class="col-lg-10"><div class="input-group"><textarea rows="5" class="smarturl-input form-control styled-control"></textarea><span class="input-group-btn"><button type="button" class="btn btn-danger rem-smartentry">-</button></span></div></div></div></div>');
+      $("#smartEntries").find('.smartEntrySection').eq($("#smartEntries").find('.smartEntrySection').length-1).find('textarea').eq(0).text('{\n "data": [],\n "start": 0,\n "end": 0\n }');
+    }
+
+    function loadAnime(slug){
+      $("#overlay").fadeIn();
+      $("#overlayStatus").text('Attempting to load in anime...');
+      var loadRequest = new AnimeLoadRequestPacket();
+      loadRequest.slug = '#{slug}';
+      socket.send(stringPacket(loadRequest));
+    }
+
+    function loadAPIFilled(obj){
+      $("#overlayStatus").text('Response fulfilled...');
+      if($("#synopsisArea").val() == ""){
+        $("#synopsisArea").val(obj.synopsis);
+      }
+      if($("#episodeCount").val() == ""){
+        $("#episodeCount").val(obj.episode_count);
+      }
+      if($("#englishName").val() == ""){
+        $("#englishName").val(obj.en);
+      }
+      if($("#romajiName").val() == ""){
+        $("#romajiName").val(obj.en_jp);
+      }
+      if($("#startedAiringDate").val() == ""){
+        $("#startedAiringDate").val(obj.started_airing_date);
+      }
+      if($("#finishedAiringDate").val() == ""){
+        $("#finishedAiringDate").val(obj.finished_airing_date);
+      }
+      if($("#genreInput").val() == ""){
+        $("#genreInput").val(obj.genres.join(","));
+      }
+      if($("#tinyCoverImage").val() == ""){
+        $("#tinyCoverImage").val(obj.cover_image.tiny);
+      }
+      if($("#smallCoverImage").val() == ""){
+        $("#smallCoverImage").val(obj.cover_image.small);
+      }
+      if($("#mediumCoverImage").val() == ""){
+        $("#mediumCoverImage").val(obj.cover_image.medium);
+      }
+      if($("#largeCoverImage").val() == ""){
+        $("#largeCoverImage").val(obj.cover_image.large);
+      }
+      if($("#tinyPosterImage").val() == ""){
+        $("#tinyPosterImage").val(obj.poster_image.tiny);
+      }
+      if($("#smallPosterImage").val() == ""){
+        $("#smallPosterImage").val(obj.poster_image.small);
+      }
+      if($("#mediumPosterImage").val() == ""){
+        $("#mediumPosterImage").val(obj.poster_image.medium);
+      }
+      if($("#largePosterImage").val() == ""){
+        $("#largePosterImage").val(obj.poster_image.large);
+      }
+      if($("#ageRating").val() == ""){
+        $("#ageRating").val(obj.age_rating);
+      }
+      if($("#communityRating").val() == ""){
+        $("#communityRating").val(obj.community_rating);
+      }
+      $("#overlay").fadeOut();
+    }
+
+    function loadFulfilled(obj){
+      $("#overlayStatus").text('Response fulfilled...');
+      $("#slugInput").val(obj.slug);
+      $("#animeTitle").text(obj.en);
+      $("#synopsisArea").val(obj.synopsis);
+      $("#episodeCount").val(obj.episode_count);
+      $("#englishName").val(obj.en);
+      $("#romajiName").val(obj.en_jp);
+      $("#startedAiringDate").val(obj.started_airing_date);
+      $("#finishedAiringDate").val(obj.finished_airing_date);
+      $("#tinyCoverImage").val(obj.cover_image.tiny);
+      $("#smallCoverImage").val(obj.cover_image.small);
+      $("#mediumCoverImage").val(obj.cover_image.medium);
+      $("#largeCoverImage").val(obj.cover_image.large);
+      $("#tinyPosterImage").val(obj.poster_image.tiny);
+      $("#smallPosterImage").val(obj.poster_image.small);
+      $("#mediumPosterImage").val(obj.poster_image.medium);
+      $("#largePosterImage").val(obj.poster_image.large);
+      $("#ageRating").val(obj.age_rating);
+      $("#communityRating").val(obj.community_rating);
+      $("#genreInput").val(obj.genres.join(","));
+
+      for(var n = 0; n != obj.entries.length; n++){
+        var currentEntry = obj.entries[n];
+        addNewEntry();
+        $(".entrySection").eq($(".entrySection").length-1).find('input').eq(0).val(currentEntry.ep);
+        $(".entrySection").eq($(".entrySection").length-1).find('input').eq(1).val(currentEntry.url);
+      }
+      for(var n = 0; n != obj.smartentries.length; n++){
+        var currentSmartEntry = obj.smartentries[n];
+        addNewSmartEntry();
+        $(".smarturl-input").eq($(".smarturl-input").length-1).val(formatTextAreaSmartURL(currentSmartEntry));
+      }
+      $("#overlayStatus").text('Finished loading');
+      $("#overlay").fadeOut();
+    }
+
+    function requestAnimeAppend(type){
+      var slug = $("#slugInput").val();
+      var entries = [];
+      var smartEntries = [];
+      if($("#entries").find(".entrySection").length > 0){
+        for(var n = 0; n != $("#entries").find(".entrySection").length; n++){
+          var currentEntrySection = $("#entries").find(".entrySection").eq(n);
+          var currentEpisode = currentEntrySection.find(".epinput").eq(0).find("input").eq(0).val();
+          var currentURL = currentEntrySection.find(".hostinput").eq(0).find("input").eq(0).val();
+          if(isInt(currentEpisode)){
+            var e = new Entry(parseInt(currentEpisode), currentURL);
+            entries.push(e);
+          }else{
+            alert("An entries episode is not an integer");
+            return;
+          }
+        }
+      }
+      if($("#smartEntries").find(".smartEntrySection").length > 0){
+        for(var n = 0; n != $("#smartEntries").find(".smartEntrySection").length; n++){
+          var currentSmartEntrySection = $("#smartEntries").find(".smarturl-input").eq(n);
+          var code = currentSmartEntrySection.val();
+          try {
+              var obj = JSON.parse(code);
+              smartEntries.push(obj);
+          } catch (e) {
+            notify('danger', 'Smart entry ' + (n+1) + ' is invalid JSON');
+            return;
+          }
+        }
+      }
+      var packet;
+      if(type == 'add'){
+        var packet = new AnimeAdditionRequest();
+      }else if(type == 'edit'){
+        var packet = new AnimeEditRequest();
+      }
+      
+      packet.slug = slug;
+      packet.synopsis = $("#synopsisArea").val();
+      packet.en = $("#englishName").val();
+      packet.en_jp = $("#romajiName").val();
+      if($("#episodeCount").val() != '' && isInt($("#episodeCount").val()) == false){
+        notify("danger", "Episode number is not a valid number");
+        return;
+      }
+      packet.episode_count = ($("#episodeCount").val() != '') ? parseInt($("#episodeCount").val()) : -1;
+      packet.entries = entries;
+      packet.smartentries = smartEntries;
+
+      packet.started_airing_date = $("#startedAiringDate").val();
+      packet.finished_airing_date = $("#finishedAiringDate").val();
+
+      var cover_image = {tiny: $("#tinyCoverImage").val(), small: $("#smallCoverImage").val(), medium: $("#mediumCoverImage").val(), large: $("#largeCoverImage").val()};
+      packet.cover_image = cover_image;
+
+      var poster_image = {tiny: $("#tinyPosterImage").val(), small: $("#smallPosterImage").val(), medium: $("#mediumPosterImage").val(), large: $("#largePosterImage").val()};
+      packet.poster_image = poster_image;
+
+      //genres need to be done here
+      packet.genres = $("#genreInput").val().split(",");
+      
+      packet.age_rating = $("#ageRating").val();
+
+      packet.community_rating = parseFloat($("#communityRating").val());
+
+      socket.send(stringPacket(packet));
+      notify("info", "Requested edit, waiting for server...");
+    }
+
+    function formatTextAreaSmartURL(smartURL){
+      return ('{\n  "start": ' + smartURL.start + ',\n  "end": ' + smartURL.end + ',\n  "data": ' + JSON.stringify(smartURL.data) + '\n}');
+    }
+
+    function Entry(ep, url){
+      this.ep = ep;
+      this.url = url;
+    }
+
+    function isInt(value) {
+      return !isNaN(value) && parseInt(Number(value)) == value && !isNaN(parseInt(value, 10));
+    }
+
+    /*DOM TRIGGERS*/
+    $("#validateSlug").click(function() {
+      $("#slugResponse").html('Waiting for server response...');
+      var p = new ValidateSlugPacket();
+      p.slug = $("#slugInput").val();
+      socket.send(stringPacket(p));
+    });
+
+    $("#scanHosts").click(function(){
+      if(lastProgressType != 'info'){
+        $("#scanProgress").removeClass(('progress-' + lastProgressType));
+        lastProgressType = 'info';
+        $("#scanProgress").addClass('progress-info');
+      }
+      $("#scanProgress").val(0);
+      var p = new ScanRequestPacket();
+      p.slug = $("#slugInput").val();
+      p.start = parseInt($("#startEpInput").val());
+      p.end = parseInt($("#endEpInput").val());
+      socket.send(stringPacket(p));
+      console.log('sent scan');
+    });
+
+    $("#fillAPI").click(function(){
+      var a = new AnimeAPIFillRequestPacket();
+      a.slug = $("#slugInput").val();
+      socket.send(stringPacket(a));
+      console.log("Fill request...");
+      $("#overlay").fadeIn();
+      $("#overlayStatus").text('Attempting to fill in anime...');
+    });
+
+    $("#addNewEntry").click(function() {
+      $("#entries").append('<div class="entrySection"><div class="epinput"><input type="text" placeholder="#ep" class="form-control styled-control"></div><div class="hostinput"><input type="text" placeholder="URL" class="form-control styled-control"></div><div class="removeEntry"><button type="button" class="btn btn-danger btn-sm rem-entry">-</button></div></div>');
+    });
+
+    $("#addNewSmartEntry").click(function(){
+      addNewSmartEntry();
+    });
+
+    $(document).on('click', '.rem-entry', function(){
+      $(this).parent().parent().remove();
+    });
+
+    $(document).on('click', '.rem-smartentry', function(){
+      $(this).parent().parent().parent().parent().parent().remove();
+    });
+
+    $("#submitButton").click(function() {
+      requestAnimeAppend('add');
+    });
+
+    $("#saveButton").click(function(){
+      requestAnimeAppend('edit');
+    });
+    sendVerificationPacket();
+  if edit
+    script.
+      loadAnime('#{slug}');
+  else
+    script.
+      addNewSmartEntry();
+      addNewEntry();

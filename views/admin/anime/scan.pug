@@ -1,0 +1,163 @@
+extends ../layout
+
+block poststylesheets
+  style.
+    .progress {
+      margin-left: auto;
+      margin-right: auto;
+      display: block;
+    }
+    
+    .scan-button {
+      margin-left: auto;
+      margin-right: auto;
+      display: block;
+    }
+    
+    .smartEntrySection {
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
+    
+    .unknown-episode-notice {
+      font-family: 'Lato', sans-serif;
+      font-size: 24px;
+      width: 80%;
+      display: block;
+      height: 36px;
+      background-color: #FA5555;
+      color: white;
+      text-align: center;
+    }
+    
+    .slug-title {
+      font-size: 24px;
+      font-family: 'Montserrat', sans-serif;
+      width: 100%;
+    }
+    
+    .add-button {
+      float: right;
+      margin-right: 10%;
+    }
+block content
+  div.container-block.main-block
+    div.inner-content
+      h2.subtitle Mass Scan
+      div#notificationArea
+      small.text-muted A mass scan will go through each and every anime and check for auto-hosts that have not been added
+      center
+        label(for='scanProgress') Scan Progress
+      progress.progress.progress-info#scanProgress(value='0', max='100') 0%
+      div.m-space
+      button.btn.btn-info-outline.scan-button.btn-lg#scanButton(type='button') Request Scan
+      div.m-space
+      div#resultArea
+      button.btn.btn-danger-outline.add-button#addAllButton(type='button') Add all
+block prescripts
+  script(src='/socket.io/socket.io.js')
+  script(src='/admin/javascripts/socket-handler')
+
+block postscripts
+  script.
+  
+    var currentProgressType = 'progress-info';
+    
+    packetListener["MassScanEntryPacket"] = function(obj){
+      entryScanned(obj.slug, obj.smartentry);
+    };
+    
+    packetListener["ScanProgressPacket"] = function(obj){
+      if(obj.type != currentProgressType){
+        $("#scanProgress").removeClass(currentProgressType);
+        currentProgressType = obj.type;
+        $("#scanProgress").addClass(obj.type);
+      }
+      $("#scanProgress").val(obj.val);
+    };
+    function entryScanned(slug, smartentry){
+      console.log('Received entry');
+      if($('[data-slug="' + slug + '"]').length == 0){
+        $("#resultArea").append('<div class="slug-section" data-slug="' + slug + '"></div>');
+      }
+      var code = '<span class="slug-title">' + slug + '</span>';
+      if(smartentry.start == 0 && smartentry.end == 0){
+        code = code + '<span class="unknown-episode-notice">Unknown #episodes</span>';
+      }
+      code = code + '<div class="smartEntrySection"><div class="smartEntry row"><div class="col-lg-10"><div class="input-group"><textarea rows="5" class="smarturl-input form-control"></textarea><span class="input-group-btn"><button type="button" onclick="removeSmartEntry(this);" class="btn btn-danger rem-smartentry">-</button></span></div></div></div></div>';
+      $('[data-slug="' + slug + '"]').eq(0).append(code);
+      var lastTextAreaIndex = ($('[data-slug="' + slug + '"]').eq(0).find('textarea').length - 1);
+      $('[data-slug="' + slug + '"]').eq(0).find('textarea').eq(lastTextAreaIndex).val(formatTextAreaSmartURL(smartentry));
+    }
+    
+    function removeSmartEntry(btn){
+      var seAmount = $(btn).parent().parent().parent().parent().parent().parent().find('.smartEntrySection').length;
+      if(seAmount == 1){
+        $(btn).parent().parent().parent().parent().parent().parent().remove();
+      }else{
+        $(btn).parent().parent().parent().parent().remove();
+      }
+    }
+    
+    function notify(type, message){
+      var notifCode = '<div id="currentNotification" class="alert alert-' + type + '" role="alert">' + message + '</div>';
+      $("#notificationArea").html(notifCode);
+      setTimeout(function(){
+        if($("#notificationArea").html() == notifCode){
+          $("#currentNotification").fadeOut();
+        }
+      }, 2000);
+    }
+    
+    function requestScan(){
+      var req = new MassScanRequest();
+      socket.send(stringPacket(req));
+      notify('info', 'Scan requested...');
+    }
+    
+    function addAllSmartEntries(){
+      var massScanObjects = [];
+      var slugSections = $('[data-slug]');
+      if(slugSections.length == 0){
+        notify('danger', '0 smart entrys to add');
+        return;
+      }
+      for(var n = 0; n != slugSections.length; n++){
+        var slug = $('[data-slug]').eq(n).attr('data-slug');
+        var smartEntryObjects = [];
+        var smartEntries = $('[data-slug]').eq(n).find('textarea');
+        for(var x = 0; x != smartEntries.length; x++){
+          var smartEntryVal = $('[data-slug]').eq(n).find('textarea').eq(x).val();
+          var smartEntryObj;
+          try {
+            smartEntryObj = JSON.parse(smartEntryVal);
+          } catch (e) {
+            notify('danger', slug + ' has bad JSON object, index: ' + n);
+            return;
+          }
+          smartEntryObjects.push(smartEntryObj);
+        }
+        var massScanObject = {slug: slug, smartentries: smartEntryObjects};
+        massScanObjects.push(massScanObject);
+      }
+      var req = new MassScanAddPacket();
+      req.massscanobjects = massScanObjects;
+      socket.send(stringPacket(req));
+      notify('info', 'Requested adding...');
+    }
+    
+    function formatTextAreaSmartURL(smartURL){
+      return ('{\n  "start": ' + smartURL.start + ',\n  "end": ' + smartURL.end + ',\n  "data": ' + JSON.stringify(smartURL.data) + '\n}');
+    }
+    
+    $("#scanButton").click(function(){
+      $("#scanButton").prop('disabled', true);
+      requestScan();
+    });
+    
+    $("#addAllButton").click(function(){
+      $("#addAllButton").prop('disabled', true);
+      addAllSmartEntries();
+    });
+    
+    sendVerificationPacket();

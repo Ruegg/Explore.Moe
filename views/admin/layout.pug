@@ -1,0 +1,26 @@
+extends ../base
+
+block nav-bar
+  nav.navbar.navbar-special.navbar-fixed-top
+    button.navbar-toggler.hidden-sm-up(type='button', data-toggle='collapse', data-target='#exCollapsingNavbar2', aria-controls='exCollapsingNavbar2', aria-expanded='false', aria-label='Toggle navigation')
+      | ☰
+    #exCollapsingNavbar2.collapse.navbar-toggleable-xs
+      a.navbar-brand(href='/admin/home')
+        | Explore Admin
+      ul.nav.navbar-nav
+        li.nav-item.active
+          a.nav-link(href='/admin/home')
+            | Home
+            span.sr-only (current)
+        li.nav-item
+          a.nav-link(href='/admin/anime') Anime
+        li.nav-item
+          a.nav-link(href='/admin/hosts') Hosts
+        li.nav-item
+          a.nav-link(href='/admin/schedule') Schedule
+        li.nav-item
+          a.nav-link(href='/admin/logout') Logout
+block layoutscripts
+  script(src="/javascripts/jquery.min.js")
+  script(src="/javascripts/tether.min.js")
+  script(src="/javascripts/bootstrap.min.js")

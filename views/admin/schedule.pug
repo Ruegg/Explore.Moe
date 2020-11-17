@@ -1,0 +1,115 @@
+extends layout
+
+block content
+  div.container-block.main-block
+    div.inner-content
+      h2.subtitle Todo
+      div.task
+        div.noselect.header
+          i.noselect.detail-drop.fa.fa-caret-right(aria-hidden='true')
+          span.noselect.todo-title Convert Socket.IO to HTTP
+        div.details
+          div.comment Just finished revising the anime addition page
+      div.task
+        div.header
+          i.detail-drop.fa.fa-caret-right(aria-hidden='true')
+          span.todo-title Finish scheduling screen
+        div.details
+      div.task
+        div.header
+          i.detail-drop.fa.fa-caret-right(aria-hidden='true')
+          span.todo-title Another task
+        div.details
+      div.task
+        div.header
+          i.detail-drop.fa.fa-caret-right(aria-hidden='true')
+          span.todo-title Another task
+        div.details
+      div.task
+        div.header
+          i.detail-drop.fa.fa-caret-right(aria-hidden='true')
+          span.todo-title Another task
+        div.details
+  div.container-block
+    div.inner-content
+      h2.subtitle Ongoing
+  div.container-block
+    div.inner-content
+      h2.subtitle Completed
+block postscripts
+  script.
+
+    var curDragging;
+    var relativeDragX = 0;
+    var relativeDragY = 0;
+
+    $(document).mousemove(function(e){
+      if(typeof curDragging != "undefined"){
+        curDragging.css('left', (e.pageX-relativeDragX) + "px");
+        curDragging.css('top', (e.pageY-relativeDragY) + "px");
+        var taskInserting;
+        var alreadyExist = false;
+        for(var n = 0; n != $(".task").length;n++){
+          var task = $($(".task")[n]);
+          if(typeof $(".task")[n+1] != "undefined"){
+            var taskBottom = task.position().top+task.height();
+            var nextTaskTop =$($(".task")[n+1]).position().top;
+            var absoluteTop = curDragging.position().top;
+            if(absoluteTop >= taskBottom && absoluteTop < nextTaskTop){
+              if(typeof task.next() != "undefined"){
+                if(!task.next().hasClass("task-opening")){
+                  taskInserting = task;
+                  break;
+                }else{
+                  alreadyExist = true;
+                }
+              }
+            }
+          }
+        }
+        if(typeof taskInserting != "undefined"){
+          var opening = $("<div class='task-opening'></div>");
+          opening.insertAfter(taskInserting);
+        }else{
+          if(!alreadyExist){
+            $(".task-opening").remove();
+          }
+        }
+      }
+    });
+    $(document).mouseup(function(e){
+      if(typeof curDragging != "undefined"){
+        if(typeof $(".task-opening").eq(0) != "undefined"){
+          $(".task-opening").eq(0).replaceWith(curDragging);
+        }
+        curDragging.css('position', 'relative');
+        curDragging.css({ 'left' : '', 'top' : '' , 'width' : ''});
+      }
+      curDragging = undefined;
+    });
+    $(".detail-drop").click(function(e){
+      e.preventDefault();
+      console.log("button");
+      var details = $(this).parent().parent().find(".details").eq(0);
+      if(details.css('display') == 'none'){
+        $(this).removeClass('fa-caret-right');
+        $(this).addClass('fa-caret-down');
+        details.fadeIn();
+      }else{
+        $(this).removeClass('fa-caret-down');
+        $(this).addClass('fa-caret-right');
+        details.fadeOut();
+      }
+    });
+    $(".header").mousedown(function (ev) {
+      ev.preventDefault();
+      //ev.stopPropogation();
+      if(!$(ev.target).hasClass("detail-drop")){
+        curDragging = $(this).parent();
+        var offset = curDragging.offset();
+        relativeDragX = ev.pageX - offset.left;
+        relativeDragY = ev.pageY - offset.top;
+        curDragging.css('width', curDragging.width() + "px");
+        curDragging.css('position', 'fixed');
+      }
+    });

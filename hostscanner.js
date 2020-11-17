@@ -14,10 +14,28 @@ function registerAutoHosts(){
   hosts.set('gogoanime.se', gogoanimeSE);
   hosts.set('masterani.me', masteraniME);
   hosts.set('ryuanime.com', ryuanimeCOM);
+  hosts.set('9anime.ru', nineAnimeRU);
 }
 
 function getAutoHosts(){
   return hosts;
+}
+
+function nineAnimeRU(titles, callback){
+  https://www12.9anime.ru/search?keyword=jujutsu+kaisen
+  var cloudflare = true,
+  method = "GET",
+  requestURL = 'https://www12.9anime.ru/search?keyword=' + replaceWithPluses(encodeURI(titles.en_jp)),
+  postData = "",
+  bad = '',
+  narrower = '<div class="anime-list">',
+  start = '"/watch/',
+  end = '"',
+  data = ['https://www12.9anime.ru/watch/', true, '/', 'ep-', 0],
+  failSlug = getSlugForm(titles.en_jp, '-'),
+  failSafeURL = 'https://www12.9anime.ru/watch/' + failSlug,
+  failed = 'Oops, sorry';
+  performReq(cloudflare, method, requestURL, postData, bad, narrower, start, end, data, failSlug, failSafeURL, failed, callback);
 }
 
 function animebakaTV(titles, callback){
@@ -283,8 +301,9 @@ function similar(a, b){
 
 function failSafe(failURL, failSlug, failed, callback){
   cloudscraper.get(failURL, function(err, httpResponse, body){
-    if(err){
+    if(err || body == null){
       callback(false);
+      return;
     }
     if(failed == ''){
       callback(body.indexOf(failSlug) > -1);

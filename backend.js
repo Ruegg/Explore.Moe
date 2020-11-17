@@ -42,7 +42,7 @@ function handleSocket(socket){
           }else if(obj instanceof packets.ScanRequestPacket){
             animeController.requestScan(socket, obj.slug, obj.start, obj.end);
           }else if(obj instanceof packets.AnimeAdditionRequest){
-            animeController.requestAnimeAdditionPacket(socket, obj.slug, obj.en, obj.en_jp, obj.synopsis, obj.episode_count, obj.entries, obj.smartentries);
+            animeController.requestAnimeAdditionPacket(socket, obj.slug, obj.en, obj.en_jp, obj.synopsis, obj.episode_count, obj.entries, obj.smartentries, obj.started_airing_date, obj.finished_airing_date, obj.cover_image, obj.poster_image, obj.genres, obj.age_rating, obj.community_rating);
           }else if(obj instanceof packets.AnimeListPacket){
             animeController.requestAnimeListPacket(socket);
           }else if(obj instanceof packets.AnimeRemovalRequest){
@@ -50,7 +50,7 @@ function handleSocket(socket){
           }else if(obj instanceof packets.AnimeLoadRequestPacket){
             animeController.requestAnimeLoadPacket(socket, obj.slug);
           }else if(obj instanceof packets.AnimeEditRequest){
-            animeController.requestAnimeEditPacket(socket, obj.slug, obj.en, obj.en_jp, obj.synopsis, obj.episode_count, obj.entries, obj.smartentries);
+            animeController.requestAnimeEditPacket(socket, obj.slug, obj.en, obj.en_jp, obj.synopsis, obj.episode_count, obj.entries, obj.smartentries, obj.started_airing_date, obj.finished_airing_date, obj.cover_image, obj.poster_image, obj.genres, obj.age_rating, obj.community_rating);
           }else if(obj instanceof packets.HostAdditionRequest){
             hostController.requestHostAddition(socket, obj.domain, obj.tags);
           }else if(obj instanceof packets.HostListPacket){
@@ -63,6 +63,8 @@ function handleSocket(socket){
             animeController.requestMassScan(socket);
           }else if(obj instanceof packets.MassScanAddPacket){
             animeController.requestMassAdd(socket, obj.massscanobjects);
+          }else if(obj instanceof packets.AnimeAPIFillRequestPacket){
+            animeController.requestAPIFill(socket, obj.slug);
           }
         }else{//Admin session expired
           sendNotification(socket, 'danger', 'Admin session expired, re-login :)!');
@@ -225,6 +227,9 @@ function isValidURL(url){
     }
     if(url.startsWith("www.")){
       url = url.substring(4, url.length);
+    }
+    if(url.startsWith("www12.")){
+      url = url.substring(6, url.length);
     }
     if(url.indexOf('/') > -1){
       url = url.substring(0, url.indexOf('/'));

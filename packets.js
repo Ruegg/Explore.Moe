@@ -13,6 +13,8 @@ packets.add(AnimeListPacket);
 packets.add(AnimeRemovalRequest);
 packets.add(AnimeLoadRequestPacket);
 packets.add(AnimeLoadPacket);
+packets.add(AnimeAPIFillPacket);
+packets.add(AnimeAPIFillRequestPacket);
 packets.add(AnimeEditRequest);
 packets.add(HostAdditionRequest);
 packets.add(HostListPacket);
@@ -108,12 +110,20 @@ function VariablePacket(){
 function AnimeAdditionRequest(){
   this.target = 'AnimeAdditionRequest';
   this.slug = '';
-  this.synopsis = '';
   this.en = '';
   this.en_jp = '';
+  this.synopsis = '';
   this.episode_count = 0;
   this.entries = [];
   this.smartentries = [];
+
+  this.started_airing_date = '';
+  this.finished_airing_date = '';
+  this.cover_image = {};
+  this.poster_image = {};
+  this.genres = [];
+  this.age_rating = '';
+  this.community_rating = 0;
 }
 
 function AnimeListPacket(){
@@ -131,6 +141,11 @@ function AnimeLoadRequestPacket(){
   this.slug = '';
 }
 
+function AnimeAPIFillRequestPacket(){
+  this.target = 'AnimeAPIFillRequestPacket';
+  this.slug = '';
+}
+
 function AnimeLoadPacket(){
   this.target = 'AnimeLoadPacket';
   this.slug = '';
@@ -140,6 +155,29 @@ function AnimeLoadPacket(){
   this.episode_count = 0;
   this.en = '';
   this.en_jp = '';
+  this.started_airing_date = '';
+  this.finished_airing_date = '';
+  this.cover_image = {};
+  this.poster_image = {};
+  this.genres = [];
+  this.age_rating = '';
+  this.community_rating = 0;
+}
+
+function AnimeAPIFillPacket(){
+  this.target = 'AnimeAPIFillPacket';
+  this.slug = '';
+  this.synopsis = '';
+  this.episode_count = 0;
+  this.en = '';
+  this.en_jp = '';
+  this.started_airing_date = '';
+  this.finished_airing_date = '';
+  this.cover_image = {};
+  this.poster_image = {};
+  this.genres = [];
+  this.age_rating = '';
+  this.community_rating = 0;
 }
 
 function AnimeEditRequest(){
@@ -151,6 +189,14 @@ function AnimeEditRequest(){
   this.episode_count = 0;
   this.entries = [];
   this.smartentries = [];
+
+  this.started_airing_date = '';
+  this.finished_airing_date = '';
+  this.cover_image = {};
+  this.poster_image = {};
+  this.genres = [];
+  this.age_rating = '';
+  this.community_rating = 0;
 }
 
 function HostAdditionRequest(){
@@ -191,4 +237,30 @@ function MassScanAddPacket(){
   this.massscanobjects = [];
 }
 
-module.exports = {MassScanAddPacket:MassScanAddPacket, MassScanEntryPacket: MassScanEntryPacket, MassScanRequest: MassScanRequest, HostEditRequest: HostEditRequest, HostRemovalRequest:HostRemovalRequest, HostListPacket: HostListPacket, HostAdditionRequest:HostAdditionRequest, AnimeEditRequest: AnimeEditRequest, AnimeLoadPacket:AnimeLoadPacket, AnimeLoadRequestPacket:AnimeLoadRequestPacket, AnimeRemovalRequest: AnimeRemovalRequest, AnimeListPacket: AnimeListPacket, AnimeAdditionRequest: AnimeAdditionRequest, ScanProgressPacket: ScanProgressPacket, VariablePacket: VariablePacket, ScanRequestPacket: ScanRequestPacket, ValidSlugPacket: ValidSlugPacket, ValidateSlugPacket: ValidateSlugPacket, NotificationPacket: NotificationPacket, AdminVerificationPacket: AdminVerificationPacket, validateString: validateString, stringPacket: stringPacket, isValidJSON: isValidJSON};
+module.exports = {
+  MassScanAddPacket,
+  MassScanEntryPacket,
+  MassScanRequest,
+  HostEditRequest,
+  HostRemovalRequest,
+  HostListPacket,
+  HostAdditionRequest,
+  AnimeEditRequest,
+  AnimeLoadPacket,
+  AnimeLoadRequestPacket,
+  AnimeRemovalRequest,
+  AnimeListPacket,
+  AnimeAdditionRequest,
+  AnimeAPIFillPacket,
+  AnimeAPIFillRequestPacket,
+  ScanProgressPacket,
+  VariablePacket,
+  ScanRequestPacket,
+  ValidSlugPacket,
+  ValidateSlugPacket,
+  NotificationPacket,
+  AdminVerificationPacket,
+  validateString,
+  stringPacket,
+  isValidJSON
+};

@@ -6,7 +6,9 @@ var packetListener = {};
 
 socket.on('message', function (data) {
   var obj = validateString(data);
+  console.log("its: " + data);
   if(obj != false){
+    console.log("Validating: " + obj.target);
     if(typeof packetListener[obj.target] == 'function'){
       packetListener[obj.target](obj);
     }
@@ -27,7 +29,9 @@ packets.push(AnimeAdditionRequest);
 packets.push(AnimeListPacket);
 packets.push(AnimeRemovalRequest);
 packets.push(AnimeLoadRequestPacket);
+packets.push(AnimeAPIFillRequestPacket);
 packets.push(AnimeLoadPacket);
+packets.push(AnimeAPIFillPacket);
 packets.push(AnimeEditRequest);
 packets.push(HostAdditionRequest);
 packets.push(HostListPacket);
@@ -80,12 +84,20 @@ function VariablePacket(){
 function AnimeAdditionRequest(){
   this.target = 'AnimeAdditionRequest';
   this.slug = '';
-  this.synopsis = '';
   this.en = '';
   this.en_jp = '';
+  this.synopsis = '';
   this.episode_count = 0;
   this.entries = [];
   this.smartentries = [];
+
+  this.started_airing_date = '';
+  this.finished_airing_date = '';
+  this.cover_image = {};
+  this.poster_image = {};
+  this.genres = [];
+  this.age_rating = '';
+  this.community_rating = 0;
 }
 
 function AnimeListPacket(){
@@ -103,6 +115,11 @@ function AnimeLoadRequestPacket(){
   this.slug = '';
 }
 
+function AnimeAPIFillRequestPacket(){
+  this.target = 'AnimeAPIFillRequestPacket';
+  this.slug = '';
+}
+
 function AnimeLoadPacket(){
   this.target = 'AnimeLoadPacket';
   this.slug = '';
@@ -112,6 +129,29 @@ function AnimeLoadPacket(){
   this.episode_count = 0;
   this.en = '';
   this.en_jp = '';
+  this.started_airing_date = '';
+  this.finished_airing_date = '';
+  this.cover_image = {};
+  this.poster_image = {};
+  this.genres = [];
+  this.age_rating = '';
+  this.community_rating = 0;
+}
+
+function AnimeAPIFillPacket(){
+  this.target = 'AnimeAPIFillPacket';
+  this.slug = '';
+  this.synopsis = '';
+  this.episode_count = 0;
+  this.en = '';
+  this.en_jp = '';
+  this.started_airing_date = '';
+  this.finished_airing_date = '';
+  this.cover_image = {};
+  this.poster_image = {};
+  this.genres = [];
+  this.age_rating = '';
+  this.community_rating = 0;
 }
 
 function AnimeEditRequest(){
@@ -123,6 +163,14 @@ function AnimeEditRequest(){
   this.episode_count = 0;
   this.entries = [];
   this.smartentries = [];
+
+  this.started_airing_date = '';
+  this.finished_airing_date = '';
+  this.cover_image = {};
+  this.poster_image = {};
+  this.genres = [];
+  this.age_rating = '';
+  this.community_rating = 0;
 }
 
 function HostAdditionRequest(){
@@ -190,6 +238,7 @@ function instanceOf(a, b){
   var result = true;
   for(var sub in a){
     if(typeof a[sub] != typeof b[sub]){
+      console.log(sub + " not equal");
       result = false;
     }
   }

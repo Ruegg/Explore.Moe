@@ -68,12 +68,21 @@ function requestAnimeLoadPacket(socket, slug){
   loadPacket.episode_count = currentAnime.episode_count;
   loadPacket.en = currentAnime.titles.en;
   loadPacket.en_jp = currentAnime.titles.en_jp;
+
+  //All finishing details
+  loadPacket.started_airing_date = currentAnime.started_airing_date;
+  loadPacket.finished_airing_date = currentAnime.finished_airing_date;
+  loadPacket.cover_image = currentAnime.cover_image;
+  loadPacket.poster_image = currentAnime.poster_image;
+  loadPacket.genres = currentAnime.genres;
+  loadPacket.age_rating = currentAnime.age_rating;
+  loadPacket.community_rating = currentAnime.community_rating;
   console.log("Sending!");
 
   socket.send(packets.stringPacket(loadPacket));
 }
 
-function requestAnimeEditPacket(socket, slug, en, en_jp, synopsis, episodeCount, entries, smartEntries){
+function requestAnimeEditPacket(socket, slug, en, en_jp, synopsis, episodeCount, entries, smartEntries, startedAiringDate, finishedAiringDate, coverImage, posterImage, genres, ageRating, communityRating){
   if(animes.has(slug) == false){
     backEnd.sendNotification(socket, 'danger', 'Requested edit for non-existant anime');
     return;
@@ -86,44 +95,23 @@ function requestAnimeEditPacket(socket, slug, en, en_jp, synopsis, episodeCount,
   animes.get(slug).episode_count = episodeCount;
   animes.get(slug).entries = confirmedEntries;
   animes.get(slug).smartentries = confirmedSmartEntries;
+  console.log("Saving starting airing: " + startedAiringDate);
+  console.log("ENDING: " + finishedAiringDate);
+  animes.get(slug).started_airing_date = startedAiringDate;
+  animes.get(slug).finished_airing_date = finishedAiringDate;
+  animes.get(slug).cover_image = coverImage;
+  animes.get(slug).poster_image = posterImage;
+  animes.get(slug).genres = genres;
+  animes.get(slug).age_rating = ageRating;
+  animes.get(slug).community_rating = communityRating;
+
   backEnd.saveAnime(slug);
-
-  //Try to update some info we can
-  kitsu.requestAnime(slug, function(error, response, body){
-    if(error){
-      return;
-    }
-
-    if(response.statusCode == 200){
-      var obj = packets.isValidJSON(body);
-      if(obj != false){
-        var attributes = utils.get(obj, 'data.0.attributes');
-        if(objectIsArray(attributes)){
-          return;
-        }
-
-        if(typeof attributes.averageRating == 'string'){
-          if(!isNaN(parseFloat(attributes.averageRating))){
-            animes.get(slug).community_rating = (parseFloat(attributes.averageRating)/100)*5;
-
-            if(typeof attributes.endDate == 'string' || typeof attributes.endDate == 'object'){
-              animes.get(slug).finished_airing_date = attributes.endDate;
-            }
-            backEnd.saveAnime(slug);
-            console.log('Updating ' + slug + ' details');
-          }
-        }
-
-      }
-    }
-
-  });
 
   console.log(slug +  'has been edited');
   backEnd.sendNotification(socket, 'success', 'Edit was successful');
 }
 
-function requestAnimeAdditionPacket(socket, slug, en, en_jp, requestedSynopsis, requestedEpisodeCount, entries, smartEntries){
+function requestAnimeAdditionPacket(socket, slug, en, en_jp, synopsis, episodeCount, entries, smartEntries, startedAiringDate, finishedAiringDate, coverImage, posterImage, genres, ageRating, communityRating){
   if(isValidSlugFormat(slug) == false){
     backEnd.sendNotification(socket, 'danger', 'Slug is bad format');
     return;
@@ -132,6 +120,21 @@ function requestAnimeAdditionPacket(socket, slug, en, en_jp, requestedSynopsis, 
     backEnd.sendNotification(socket, 'danger', 'An anime already exist with given slug');
     return;
   }
+
+  var confirmedEntries = getValidatedEntries(entries);
+  var confirmedSmartEntries = getValidatedSmartEntries(smartEntries);
+
+  var animeObj = new Anime();
+  animeObj.setInitData({en,en_jp}, synopsis, startedAiringDate, finishedAiringDate, coverImage, posterImage, genres, ageRating, episodeCount, communityRating, confirmedEntries, confirmedSmartEntries);
+  animes.set(slug, animeObj);
+  backEnd.saveConfiguration();
+  backEnd.saveAnime(slug);
+
+  backEnd.sendNotification(socket, 'success', 'Anime has been added to database');
+}
+
+function requestAPIFill(socket, slug){
+  console.log("Filling anime: " + slug);
   kitsu.requestAnime(slug, function(error, response, body){
     if(error){
       backEnd.sendNotification(socket, 'danger', 'Request error');
@@ -140,19 +143,15 @@ function requestAnimeAdditionPacket(socket, slug, en, en_jp, requestedSynopsis, 
     if(response.statusCode == 200){
       var obj = packets.isValidJSON(body);
       if(obj != false){
-        console.log('Starting creation of ' + slug);
         var attributes = utils.get(obj, 'data.0.attributes');
-        if(objectIsArray(attributes)){
-          backEnd.sendNotification(socket, 'danger', 'Received bad object from HummingBird');
+
+        if(attributes == null){
+          backEnd.sendNotification(socket, 'danger', 'Received bad object from Kitsu');
+          return;
         }
 
         var titles = prioritizeTitles(attributes.titles);
-        if(en != ''){
-          titles.en = en;
-        }
-        if(en_jp != ''){
-          titles.en_jp = en_jp;
-        }
+
         var synopsis = '';
         var started_airing_date = '';
         var finished_airing_date = '';
@@ -162,33 +161,27 @@ function requestAnimeAdditionPacket(socket, slug, en, en_jp, requestedSynopsis, 
         var age_rating = '?';
         var episode_count = 0;
         var average_rating = 0;
-        /*Check object types*/
-        if(requestedSynopsis == ''){//Allow override synopsis
-          if(typeof attributes.synopsis == 'string'){
-            synopsis = attributes.synopsis;
-          }
-        }else{
-          synposis = requestedSynopsis;
+
+        if(typeof attributes.synopsis == 'string'){
+          synopsis = attributes.synopsis;
         }
 
-        if(typeof attributes.startDate == 'string' || typeof attributes.startDate == 'object'){
+        if(typeof attributes.startDate == 'string'){
           started_airing_date = attributes.startDate;
         }
-        if(typeof attributes.endDate == 'string' || typeof attributes.endDate == 'object'){
+
+        if(typeof attributes.endDate == 'string'){
           finished_airing_date = attributes.endDate;
         }
+
         if(typeof attributes.averageRating == 'string'){
           if(!isNaN(parseFloat(attributes.averageRating))){
             average_rating = (parseFloat(attributes.averageRating)/100)*5;
           }
         }
-        if(objectIsArray(attributes.genres)){
-          for(var n = 0; n != attributes.genres.length;n++){
-            var currentGenre = attributes.genres[n];
-            if(typeof currentGenre == 'string'){
-              genres.push(currentGenre);
-            }
-          }
+
+        if(objectIsArray(attributes.genres)){//We can trust this data since it's our own
+          genres = attributes.genres;
         }
 
         if(typeof attributes.coverImage == 'object' && attributes.coverImage != null){
@@ -201,40 +194,31 @@ function requestAnimeAdditionPacket(socket, slug, en, en_jp, requestedSynopsis, 
           age_rating = attributes.ageRating;
         }
 
-        if(requestedEpisodeCount == -1){//Allow this to be overriden
-          if(typeof attributes.episodeCount == 'number'){
-            episode_count = attributes.episodeCount;
-          }
-        }else{
-            episode_count = requestedEpisodeCount;
+        if(typeof attributes.episodeCount == 'number'){
+          episode_count = attributes.episodeCount;
         }
 
-        /*Confirm entries*/
-        var confirmedEntries = getValidatedEntries(entries);
-        var confirmedSmartEntries = getValidatedSmartEntries(smartEntries);
-        console.log('Configuring entries');
-        for(var n = 0; n != entries.length;n++){
-          var currentEntry = entries[n];
-          var validEntry = isValidEntry(currentEntry);
-          if(validEntry != false){
-            confirmedEntries.push(validEntry);
-          }
-        }
+        var infoPacket = new packets.AnimeAPIFillPacket();
 
-        /*Create and add anime*/
-        var animeObj = new Anime();
-        animeObj.setInitData(titles, synopsis, started_airing_date, finished_airing_date, cover_image, poster_image, genres, age_rating, episode_count, average_rating, confirmedEntries, confirmedSmartEntries);
-        animes.set(slug, animeObj);
-        backEnd.saveConfiguration();
-        backEnd.saveAnime(slug);
+        infoPacket.slug = slug;
+        infoPacket.synopsis = synopsis;
+        infoPacket.episode_count = episode_count;
+        infoPacket.en = titles.en;
+        infoPacket.en_jp = titles.en_jp;
 
-        backEnd.sendNotification(socket, 'success', 'Anime has been added to database');
-      }else{
-        console.log('Bad obj received from hummingbird');
-        backEnd.sendNotification(socket, 'danger', 'Received bad object from HummingBird');
+        infoPacket.started_airing_date = started_airing_date;
+        infoPacket.finished_airing_date = finished_airing_date;
+        infoPacket.cover_image = cover_image;
+        infoPacket.poster_image = poster_image;
+        infoPacket.genres = genres;
+        infoPacket.age_rating = age_rating;
+        infoPacket.community_rating = average_rating;
+
+        socket.send(packets.stringPacket(infoPacket));
+
+        console.log("Sent!");
+
       }
-    }else{
-      backEnd.sendNotification(socket, 'danger', 'Hummingbird does not use slug given');
     }
   });
 }
@@ -671,7 +655,7 @@ function getTileObjects(){
 function getAiringTileObjects(){
   var tileObjects = [];
   animes.forEach(function(anime, slug){
-    if(anime.finished_airing_date == null){
+    if(anime.finished_airing_date == null || anime.finished_airing_date == ''){
       var tileObject = {slug: slug, poster_image: anime.poster_image.medium, english: anime.titles.en, community_rating: anime.community_rating};
       tileObjects.push(tileObject);
     }
@@ -730,6 +714,9 @@ function belongsToDomain(url, domain){
   if(url.startsWith("www2.")){
     url = url.substring(5, url.length);
   }
+  if(url.startsWith("www12.")){
+    url = url.substring(6, url.length);
+  }
   if(url.startsWith(domain.toLowerCase())){
     return true;
   }else{
@@ -752,27 +739,28 @@ function formatTextAreaSmartURL(smartURL){
 }
 
 module.exports = {
-  getAnimes: getAnimes,
-  getAnimeBySlug: getAnimeBySlug,
-  loadAnime: loadAnime,
-  requestAnimeListPacket: requestAnimeListPacket,
-  requestAnimeRemoval: requestAnimeRemoval,
-  requestAnimeLoadPacket: requestAnimeLoadPacket,
-  requestAnimeEditPacket: requestAnimeEditPacket,
-  requestAnimeAdditionPacket: requestAnimeAdditionPacket,
-  requestScan: requestScan,
-  validateSlug: validateSlug,
-  isValidSlugFormat: isValidSlugFormat,
-  requestMassScan: requestMassScan,
-  requestMassAdd: requestMassAdd,
-  getGenreCode: getGenreCode,
-  jsonCodeForEntries: jsonCodeForEntries,
-  getTagsFromURL: getTagsFromURL,
-  getTileObjects: getTileObjects,
-  getAiringTileObjects: getAiringTileObjects,
-  orderByRating: orderByRating,
-  createAnimeTilesCode: createAnimeTilesCode,
-  createAnimePostersCode: createAnimePostersCode,
-  createAnimeTilesCodeFromArray: createAnimeTilesCodeFromArray,
-  createAnimePostersCodeFromArray: createAnimePostersCodeFromArray
+  getAnimes,
+  getAnimeBySlug,
+  loadAnime,
+  requestAnimeListPacket,
+  requestAnimeRemoval,
+  requestAnimeLoadPacket,
+  requestAnimeEditPacket,
+  requestAnimeAdditionPacket,
+  requestScan,
+  validateSlug,
+  isValidSlugFormat,
+  requestMassScan,
+  requestMassAdd,
+  getGenreCode,
+  jsonCodeForEntries,
+  getTagsFromURL,
+  getTileObjects,
+  getAiringTileObjects,
+  orderByRating,
+  createAnimeTilesCode,
+  createAnimePostersCode,
+  createAnimeTilesCodeFromArray,
+  createAnimePostersCodeFromArray,
+  requestAPIFill
 };
